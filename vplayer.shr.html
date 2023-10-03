@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Player</title>
+    <style type="text/css">
+        * {
+            padding: 0;
+            margin: 0;
+            box-sizing: border-box;
+            font-family: 'Courier New';
+        }
+
+        body {
+            width: 100%;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .video-container {
+            position: relative;
+            overflow: hidden;
+        }
+
+        video {
+            width: 100%;
+            height: 99vh;
+            min-width: 700px;
+        }
+
+        .ctl {
+            height: 60px;
+            position: absolute;
+            left: 10px;
+            right: 10px;
+            bottom: -10px;
+            transition: 0.7s ease;
+        }
+
+        .controls {
+            /* height: 90px; */
+            padding: 8px;
+            background-color: hsl(210, 4%, 9%);
+            border-radius: 5px;
+            transform: translateY(100px);
+        }
+
+
+        .progress-bar {
+            position: relative;
+            width: 100%;
+            height: 4px;
+            background-color: hsl(216, 3%, 28%);
+            border-radius: 2px;
+        }
+
+        .progress-bar::before {
+            content: '';
+            display: flex;
+            align-items: center;
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: calc(var(--width, 0) * 1%);
+            min-width: 1px;
+            max-width: 100%;
+            background-color: #069;
+            border-radius: 2px;
+        }
+
+        .status {
+            height: 20px;
+            margin-top: 4px;
+            position: relative;
+        }
+
+        .speed {
+            color: hsl(0, 0%, 71%);
+            font-weight: bold;
+            position: absolute;
+            right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <main class="video-container">
+        <video class="audio" style="display: none;" src="audio.mp3" autoplay></video>
+        <video class="video" src="video.mp4" autoplay></video>
+        <section class="ctl hide-controls"></section>
+        <section class="ctl controls">
+            <div class="progress-bar" style="--width: 0"></div>
+            <div class="status">
+                <small class="speed">1.0</small>
+            </div>
+        </section>
+    </main>
+    <script>
+        const video = document.querySelector('.video');
+        const audio = document.querySelector('.audio');
+        const hideControls = document.querySelector('.hide-controls');
+        const controls = document.querySelector('.controls');
+        const progressBar = controls.querySelector('.progress-bar');
+        const speed = document.querySelector('.speed');
+
+        const keyEvents = {
+            Space: playNPause,
+            ArrowLeft: () => moveBackNForward(-10),
+            ArrowRight: () => moveBackNForward(10),
+            ArrowUp: () => setPlayBackRate(0.1),
+            ArrowDown: () => setPlayBackRate(-0.1),
+        }
+
+        let start2Scrub = false;
+        let playbackRateValue = 1.0;
+
+        // this is important because it updates currentTime when video plays
+        video.addEventListener('timeupdate', () => {
+            const currentTime = video.currentTime / video.duration * 100;
+            progressBar.style.setProperty('--width', currentTime);
+        });
+
+        video.addEventListener('click', playNPause);
+
+        hideControls.addEventListener('mouseenter', () => {
+            controls.style.transform = 'translateY(0)';
+            hideControls.style.transform = 'translateY(65px)';
+        });
+
+        controls.addEventListener('mouseleave', () => {
+            controls.style.transform = 'translateY(100px)';
+            hideControls.style.transform = 'translateY(0)';
+            start2Scrub = false;
+        });
+
+        progressBar.addEventListener('click', setNewTime2Play);
+        progressBar.addEventListener('mousemove', (ev) => start2Scrub && setNewTime2Play(ev));
+        progressBar.addEventListener('mousedown', () => start2Scrub = true);
+        progressBar.addEventListener('mouseup', () => start2Scrub = false);
+
+        addEventListener('keydown', (ev) => {
+            const key = ev.code;
+            if(!(key in keyEvents)) return;
+
+            keyEvents[key]();
+        })
+
+        // will make sure video's and audio's current time play the same level
+        setInterval(() => {
+            const videoCurrentTime = video.currentTime;
+            const audioCurrentTime = audio.currentTime;
+            if(videoCurrentTime.toFixed(0) === audioCurrentTime.toFixed(0)) return;
+            video.currentTime = audioCurrentTime;
+        }, 4_000);
+
+        function playNPause() {
+            if(video.paused) {
+                video.play();
+                audio.play();
+                return;
+            }
+
+            video.pause();
+            audio.pause();
+        }
+
+        function setNewTime2Play(ev) {
+            const rangeSelected = ev.offsetX;
+            const progressWidth = progressBar.offsetWidth;
+            const newTime = rangeSelected / progressWidth * video.duration;
+            video.currentTime = newTime;
+            audio.currentTime = newTime;
+        }
+
+        function moveBackNForward(skip) {
+            video.currentTime += skip;
+            audio.currentTime += skip;
+        }
+
+        function setPlayBackRate(rate) {
+            let tempCont = playbackRateValue;
+            tempCont += rate;
+
+            // error 0.7 + 0.1 = 0.7999999999999999
+            tempCont = tempCont === 0.7999999999999999 ? 0.8 : tempCont;
+            tempCont = rmExDig(tempCont);
+            if(tempCont > 2.0 || tempCont < 0.1) return;
+
+            playbackRateValue = tempCont;
+
+            video.playbackRate = playbackRateValue;
+            audio.playbackRate = playbackRateValue;
+            speed.textContent = playbackRateValue;
+        }
+
+        function rmExDig(num) {
+            let rmExDig = `${num}`;
+            return parseFloat(rmExDig[0] + rmExDig[1] + rmExDig[2]);
+        }
+    </script>
+</body>
+</html>
