@@ -1,4 +1,4 @@
-const ytdl = require('ytdl-core');
+const ytdl = require('@distube/ytdl-core');
 const fs = require('fs');
 const { readFile, writeFile, access, stat, mkdir } = fs.promises;
 const { createInterface } = require('readline');
@@ -30,6 +30,8 @@ const run = async () => {
 			// const dirExists = await directoryExists(details.foldername);
 			// if(!dirExists) await mkdir(details.foldername);
 			if(details.videostatus != 'done') {
+                const vInfo = await ytdl.getInfo(details.videoUrl);
+
 				const res = await download(details.videoUrl, videoPath, videoFilter);
 				videoData[i].videostatus = res;
 				writeFromVideoDetailsFile(videoData);
@@ -46,10 +48,12 @@ const run = async () => {
 			if(!merge) continue;
 
 			const { error, stdout, stderr } = await exec(`./merge-video-n-audio ${ details.videoname }`);
+            const rmTrashStatus = await exec('./rm-trash');
 
 			console.log(`video ${ details.videoname } is completed`);
 			console.log('Error: ', error);
 			console.log(stderr);
+            console.log('Remove Trash Status: ', rmTrashStatus);
 		}
 	} catch (error) {
 		console.log(error)
@@ -75,7 +79,15 @@ function download(videoUrl, output = 'audio.mp3', defFilter = { filter: 'audioon
   // const fileExist = await directoryExists(output);
   // const fileData = (fileExist) ? await stat(output) : { size: -1 };
 
-  const stream = ytdl(videoUrl, { range, ...defFilter }); 
+  const stream = ytdl(videoUrl, { 
+        range, 
+        ...defFilter,
+        requestOptions: {
+            headers: {
+                'Accept-Language': 'en-US,en;q=0.9'
+        },
+        lang: 'en',
+  }}); 
   stream.pipe(fs.createWriteStream(output, flags));
 
   stream.on('progress', (chunkLength, downloaded, total) => {
@@ -177,7 +189,11 @@ async function options(data) {
 
 async function getVideoLink() {
 	const videoLink = await prompt('Paste the URL of video or press Control + C to exit:');
-	if(!videoLink || !videoLink.startsWith('https://www.youtube.com/watch?v=')) {
+
+	if(!videoLink || !(
+           videoLink.startsWith('https://www.youtube.com/watch?v=') ||
+           videoLink.startsWith('https://youtube.com/watch?v=') ||
+           videoLink.startsWith('https://youtu.be/'))) {
 		return getVideoLink();
 	}
 
@@ -192,6 +208,3 @@ async function getVideoName() {
 
 	return videoName;
 }
-
-// // https://nextjs.org/learn/foundations/from-javascript-to-react/adding-interactivity-with-state
-// // https://www.youtube.com/watch?v=6viHboa83iY

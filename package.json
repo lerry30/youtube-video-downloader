@@ -10,6 +10,6 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "ytdl-core": "^4.11.5"
+    "@distube/ytdl-core": "^4.16.12"
   }
 }
